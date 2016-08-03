@@ -7,6 +7,7 @@ main/ipch/
 main/x64/
 main/main/Debug/
 main/main/x64/
+main/.vs/
 
 *.dll
 *.a
