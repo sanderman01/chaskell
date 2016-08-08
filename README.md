@@ -39,14 +39,14 @@ Since we will be compiling our Haskell code with GHC/Cabal, we do not need to pr
 
 Finding the right .cabal configuration to include the c-file and all the rest into a .dll is a pain, but once we have it, building is easily done by running two commands from the project directory:
 
-* *cabal exec -- ghc -optc-O -c src/StartEnd.c -o obj/StartEnd.o*
+* *cabal exec -- ghc -optc-O -c cbits/StartEnd.c -o obj/StartEnd.o*
 * *cabal build*
 
 The first command is to create an object file from *Startend.c*.
 The second command creates the actual dll with our Haskell code and also inserts the c code in the object file which is needed to start the haskell runtime. 
 Cabal knows to include this into the final .dll due to the following options in our *.cabal* file in addition to the normal sources. Take note of these:
 
-*c-sources:           src/StartEnd.c*
+*c-sources:           cbits/StartEnd.c*
 *ghc-options:         -O1 -shared obj/StartEnd.o*
 
 The build will create several important files:
