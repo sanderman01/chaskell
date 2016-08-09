@@ -19,7 +19,7 @@ synopsis:            just a test of calling a haskell dll from c.
 license:             MIT
 
 -- The file containing the license text.
-license-file:        LICENSE
+license-file:        ../LICENSE.md
 
 -- The package author(s).
 author:              Alexander Verbeek
@@ -65,5 +65,5 @@ library
   
   -- Options to pass to ghc
   --src/StartEnd.c
-  ghc-options:         -O1 -shared obj/StartEnd.o
+  ghc-options:         -O1 -shared obj/StartEnd.o -o HSdll.dll
   

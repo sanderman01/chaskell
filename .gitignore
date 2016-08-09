@@ -1,6 +1,7 @@
 
 haskell/dist/
 haskell/obj/
+haskell/.stack-work
 
 main/Debug/
 main/ipch/

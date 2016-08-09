@@ -1,18 +1,16 @@
 # What is CHaskell?
 CHaskell is a little educational project where I experiment with calling Haskell code from a Visual Studio C++ project and vice versa, in preparation for a larger project.
 
-Online information on embedding Haskell into C++ applications was often outdated and contradictory, so I made these projects and this repo as a ready made example with explanation in this readme, in case I ever forget.
+Online information on embedding Haskell into C++ applications was often outdated and contradictory, especially for Windows systems, so I made these projects and this repo as a ready made example with explanation in this readme, in case I ever forget.
 
 I am writing this on Windows 10, for 64 Bit, with the following tools:
 
 * Visual Studio 2015
 * GHC 7.10.3 (Haskell Platform)
-* Cabal 1.22.6.0.
+* Cabal 1.22.6.0
+* Stack 1.0.4.3
 
 This readme will mostly describe the compiling and building steps. The sample code is inside the *haskell* and *main* directories.
-
-The process described here will need adjustment if you intend to build on different platforms. Instead of haskell platform, you could probably also use stack. 
-In fact, using stack is generally a good idea. I will probably update this guide in the future to include any stack specific build steps or related info.
 
 This question and answer on Stack Overflow was very helpful for me when I was struggling to figure this stuff out:
 [How can I integrate a Haskell DLL into a C++/Qt Windows application?](http://stackoverflow.com/questions/31438420/how-can-i-integrate-a-haskell-dll-into-a-c-qt-windows-application)
@@ -39,23 +37,38 @@ Since we will be compiling our Haskell code with GHC/Cabal, we do not need to pr
 
 Finding the right .cabal configuration to include the c-file and all the rest into a .dll is a pain, but once we have it, building is easily done by running two commands from the project directory:
 
-* *cabal exec -- ghc -optc-O -c cbits/StartEnd.c -o obj/StartEnd.o*
-* *cabal build*
+* `cabal exec -- ghc -optc-O -c cbits/StartEnd.c -o obj/StartEnd.o`
+* `cabal build`
 
 The first command is to create an object file from *Startend.c*.
 The second command creates the actual dll with our Haskell code and also inserts the c code in the object file which is needed to start the haskell runtime. 
 Cabal knows to include this into the final .dll due to the following options in our *.cabal* file in addition to the normal sources. Take note of these:
 
-*c-sources:           cbits/StartEnd.c*
-*ghc-options:         -O1 -shared obj/StartEnd.o*
+* `c-sources:           cbits/StartEnd.c`
+* `ghc-options:         -O1 -shared obj/StartEnd.o`
 
 The build will create several important files:
 
-* /dist/build/Hello_stub.h
-* HSdll.dll
-* HSdll.dll.a
+* `/dist/build/Hello_stub.h`
+* `HSdll.dll`
+* `HSdll.dll.a`
 
-See the .cabal file included in the Haskell project.
+Hello_stub.h will contain type signatures for functions in our haskell modules. We will need to include this in our c/c++ project.  
+The HSdll.dll file now contains both our newly written haskell module and the haskell runtime, so it results in a relatively big, standalone library, which we can distribute together with our main program.
+This means users will not need to have the entire haskell toolchain installed.  
+The HSdll.dll.a contains extra information needed by the c/c++ compiler to link against this .dll.
+
+### Stack
+It took me a while to figure out how to build correctly, using stack. My problem was that most of the build seemed to work just fine, but the final .dll and .dll.a files were not being created for some reason.
+The issue turned out to be very simple. I was using the following line in my cabal file.  
+`ghc-options:         -O1 -shared obj/StartEnd.o`  
+This worked fine using cabal normally, but was a bit obviously a bit ambiguous and cabal decided to name the object 'SDdll.dll'.
+It seems like stack did not like that. Once I specified the output filename on a hunch, everything worked as expected again even when building through stack.  
+`ghc-options:         -O1 -shared obj/StartEnd.o -o HSdll.dll`  
+I find this difference in behaviour very strange we are just passing options to ghc which shouldn't really be all that relevant to either cabal or stack.
+Anyway, it's good to know about this gotcha, and explicitly naming the output file is probably a wise idea anyway.
+
+Apart from this little change. We do not need any special changes to build our project with stack. We can simply use the .yaml file that `stack init` generated for us.
 
 # Building the C or C++ project
 
@@ -95,10 +108,11 @@ Once all the includes and linking options are set correctly, we can finally buil
 
 Before we run our new executable though, we need to ensure that the .dll we linked against can be found by our program. There are two options here:
 
-* Copy the .dll from the Haskell project to the working directory of the executable. (this could even be a post-build command in your project)
+* Copy the .dll from the Haskell project to the working directory of the executable. (this could even be a post-build command/hook in your project)
 * Add the directory containing the .dll to our PATH variable.
 
-The first option makes sense for distribution. For your own development system, adding to PATH may work better, since you don't need to bother with files being copied around.
+The first option makes sense for distribution. For your own development system, adding to PATH may work better, since you don't need to bother with copying files around.
+Some people might recommend copying the .dll to your windows system directory, as an easy way to get access to that .dll from anywhere without messing with a PATH variable, but that is just silly! Don't do that.
 
 Now run the executable, and if everything went right, then you should see console output from both the C and Haskell side.
 
