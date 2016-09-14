@@ -62,8 +62,8 @@ The HSdll.dll.a contains extra information needed by the c/c++ compiler to link 
 It took me a while to figure out how to build correctly, using stack. My problem was that most of the build seemed to work just fine, but the final .dll and .dll.a files were not being created for some reason.
 The issue turned out to be very simple. I was using the following line in my cabal file.  
 `ghc-options:         -O1 -shared obj/StartEnd.o`  
-This worked fine using cabal normally, but was a bit obviously a bit ambiguous and cabal decided to name the object 'SDdll.dll'.
-It seems like stack did not like that. Once I specified the output filename on a hunch, everything worked as expected again even when building through stack.  
+This worked fine when using cabal normally, but was actually a bit ambiguous and cabal decided to name the object 'HSdll.dll'.
+It seems like stack did not like that ambiguity. Once I specified the output filename on a hunch, everything worked as expected again even when building through stack.  
 `ghc-options:         -O1 -shared obj/StartEnd.o -o HSdll.dll`  
 I find this difference in behaviour very strange we are just passing options to ghc which shouldn't really be all that relevant to either cabal or stack.
 Anyway, it's good to know about this gotcha, and explicitly naming the output file is probably a wise idea anyway.
@@ -78,11 +78,10 @@ Before building, it is important to specify the folders containing include files
 
 *Project Configuration Properties -> C/C++ -> General -> Additional Include Directories*
 
-needs includes to GHC headers, and to our own C headers inside the haskell project. On my system, it the paths look like this:
+needs includes to GHC headers (we only really need the type definitions in HsFFI.h) and to our own C headers inside the haskell project. I hate having to put absolute paths dependant on the local system inside project files (needing to fix your project file to include specifics for your local system after every pull and update gets tiresome quickly), so I've put the include path for GHC includes in an environment variable. On my system, the configuration looks like this:
 
-* path\to\ghc\includes *(on my system it looks like this: C:\HaskellPlatform\7.10.3\lib\include)*
-* ..\..\haskell\src
-* ..\..\haskell\dist\build
+* `$(HASKELL_INCLUDE_PATH)` *(System environment variable I defined myself and pointing to `C:\HaskellPlatform\7.10.3\lib\include`)*
+* `..\..\haskell\dist\build`
 
 ## Libraries
 
@@ -90,17 +89,13 @@ It is also important to specify the library folder and library name for linking.
 
 *Project Configuration Properties -> Linker -> General -> Additional Library Directories*
 
-needs to point to the directory with object file we built in the previous step:
-
-* *..\..\haskell*
+needs to point to the directory with object file we built in the previous step: `..\..\haskell`
 
 *Project Configuration Properties -> Linker -> Input -> Additional Dependencies*
 
-needs to point to our final object:
+needs to point to our final object: `HSdll.dll.a`
 
-* *HSdll.dll.a*
-
-The this file describes the symbols like functions which are contained in the .dll file, and is used to link against the .dll. Cabal and GHC create this file with an .a extension. This is equivalent to a .lib on Windows.
+This file describes the symbols like functions which are contained in the .dll file, and is used to link against the .dll. Cabal and GHC create this file with an .a extension. This is equivalent to a .lib on Windows.
 
 # Build and Run
 
