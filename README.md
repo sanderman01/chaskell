@@ -23,7 +23,7 @@ This GHC documentation page is also helpful. Note it seemed a bit outdated at ti
 
 The first step in making our Haskell code available to a C or C++ project is to compile our Haskell code to a proper windows .dll. Then we can link against that .dll from our C/C++ project.
 
-Building this .dll fromt the Haskell source is the part I initially had the most trouble with. Haskell and Windows tends to be a troublesome commbination for various reasons.
+Building this .dll fromt the Haskell source is the part I initially had the most trouble with. Haskell and Windows tends to be a troublesome combination for various reasons.
 
 # Building the Cabal project
 
@@ -40,48 +40,56 @@ Finding the right .cabal configuration to include the c-file and all the rest in
 * `cabal exec -- ghc -optc-O -c cbits/StartEnd.c -o obj/StartEnd.o`
 * `cabal build`
 
+Or the equivalent using stack:
+
+* `stack exec -- ghc -optc-O -c cbits/StartEnd.c -o obj/StartEnd.o`
+* `stack build`
+
 The first command is to create an object file from *Startend.c*.
 The second command creates the actual dll with our Haskell code and also inserts the c code in the object file which is needed to start the haskell runtime. 
 Cabal knows to include this into the final .dll due to the following options in our *.cabal* file in addition to the normal sources. Take note of these:
 
 * `c-sources:           cbits/StartEnd.c`
-* `ghc-options:         -O1 -shared obj/StartEnd.o`
+* `ghc-options:         -O1 -shared obj/StartEnd.o -o bin/HaskellLib.dll -stubdir stub`
 
 The build will create several important files:
 
-* `/dist/build/Hello_stub.h`
-* `HSdll.dll`
-* `HSdll.dll.a`
+* `/stub/Hello_stub.h`
+* `/bin/HaskellLib.dll`
+* `/bin/HaskellLib.a`
 
 Hello_stub.h will contain type signatures for functions in our haskell modules. We will need to include this in our c/c++ project.  
-The HSdll.dll file now contains both our newly written haskell module and the haskell runtime, so it results in a relatively big, standalone library, which we can distribute together with our main program.
-This means users will not need to have the entire haskell toolchain installed.  
-The HSdll.dll.a contains extra information needed by the c/c++ compiler to link against this .dll.
+The HaskellLib.dll file now contains both our newly written haskell module and the haskell runtime, so it results in a relatively large, standalone library, which we can distribute together with our main program.
+This means users will not need to have the entire haskell toolchain installed.
+The HaskellLib.a file contains symbol information needed by the c/c++ compiler to link against this .dll.
 
 ### Stack
 It took me a while to figure out how to build correctly, using stack. My problem was that most of the build seemed to work just fine, but the final .dll and .dll.a files were not being created for some reason.
 The issue turned out to be very simple. I was using the following line in my cabal file.  
 `ghc-options:         -O1 -shared obj/StartEnd.o`  
 This worked fine when using cabal normally, but was actually a bit ambiguous and cabal decided to name the object 'HSdll.dll'.
-It seems like stack did not like that ambiguity. Once I specified the output filename on a hunch, everything worked as expected again even when building through stack.  
-`ghc-options:         -O1 -shared obj/StartEnd.o -o HSdll.dll`  
-I find this difference in behaviour very strange we are just passing options to ghc which shouldn't really be all that relevant to either cabal or stack.
+It seems like stack did not like that ambiguity and as such behaved differently from cabal. Once I explicitly specified the output filename, everything worked as expected even when building through stack.  
+`ghc-options:         -O1 -shared obj/StartEnd.o -o HaskellLib.dll`
+I find this difference in behaviour very strange as we are merely passing options to ghc which shouldn't really be all that relevant to either cabal or stack.
 Anyway, it's good to know about this gotcha, and explicitly naming the output file is probably a wise idea anyway.
 
 Apart from this little change. We do not need any special changes to build our project with stack. We can simply use the .yaml file that `stack init` generated for us.
+Though I did take some time to organise the build artifacts into appropriate directories.
 
 # Building the C or C++ project
 
-Before building, it is important to specify the folders containing include files and libraries for your local ghc installation and of course your own haskell library (in cabal-project-dir/dist/build/)
+Before building, it is important to specify the folders containing include files and libraries for ~~your local ghc installation~~ and of course your own haskell library (in cabal-project-dir/stub)
 
 ## Includes
 
 *Project Configuration Properties -> C/C++ -> General -> Additional Include Directories*
 
-needs includes to GHC headers (we only really need the type definitions in HsFFI.h) and to our own C headers inside the haskell project. I hate having to put absolute paths dependant on the local system inside project files (needing to fix your project file to include specifics for your local system after every pull and update gets tiresome quickly), so I've put the include path for GHC includes in an environment variable. On my system, the configuration looks like this:
+~~needs includes to GHC headers (we only really need the type definitions in HsFFI.h) and to our own C headers inside the haskell project. I hate having to put absolute paths dependant on the local system inside project files (needing to fix your project file to include specifics for your local system after every pull and update gets tiresome quickly), so I've put the include path for GHC includes in an environment variable. On my system, the configuration looks like this:~~ We have added our own header for the FFI type definitions, so we no longer need to include GHC headers.  
 
-* `$(HASKELL_INCLUDE_PATH)` *(System environment variable I defined myself and pointing to `C:\HaskellPlatform\7.10.3\lib\include`)*
-* `..\..\haskell\dist\build`
+We also need to include the stub headers generated by our earlier stack build.
+
+* ~~`$(HASKELL_INCLUDE_PATH)` *(System environment variable I defined myself and pointing to `C:\HaskellPlatform\7.10.3\lib\include`)*~~ (This is no longer needed since we now have our own minimalist header)
+* `..\..\haskell\stub`
 
 ## Libraries
 
@@ -89,11 +97,11 @@ It is also important to specify the library folder and library name for linking.
 
 *Project Configuration Properties -> Linker -> General -> Additional Library Directories*
 
-needs to point to the directory with object file we built in the previous step: `..\..\haskell`
+needs to point to the directory with object file we built in the previous step: `..\..\haskell\bin`
 
 *Project Configuration Properties -> Linker -> Input -> Additional Dependencies*
 
-needs to point to our final object: `HSdll.dll.a`
+needs to point to our final object: `HaskellLib.dll.a`
 
 This file describes the symbols like functions which are contained in the .dll file, and is used to link against the .dll. Cabal and GHC create this file with an .a extension. This is equivalent to a .lib on Windows.
 
