@@ -65,5 +65,5 @@ library
   
   -- Options to pass to ghc
   --src/StartEnd.c
-  ghc-options:         -O1 -shared obj/StartEnd.o -o HSdll.dll
+  ghc-options:         -O1 -shared obj/StartEnd.o -o bin/HaskellLib.dll -stubdir stub
   
